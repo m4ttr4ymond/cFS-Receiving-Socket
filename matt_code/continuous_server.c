@@ -12,7 +12,7 @@
 
 #define INET_UDP_SERVER_PORT 8081
 // Max UDP datagram size
-#define SERVER_BUFFER_MAXLINE 65535
+#define SERVER_BUFFER_MAXLINE 65535*3
 
 int socketFD; // socket file descriptor
 char IPContainer[16] = "";
