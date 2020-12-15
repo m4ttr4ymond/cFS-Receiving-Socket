@@ -18,9 +18,7 @@ int main()
     Sockets socket_data;
     Incoming_Data incoming_data;
 
-    incoming_data.state.len = incoming_data.table.len = incoming_data.app.len = 0;
-
-    if (initialize_socket(&socket_data) != 0)
+    if (initialize_socket(&socket_data, &incoming_data) != 0)
     {
         printf("There was an issue initializing the socket\n");
         exit(EXIT_FAILURE);
@@ -32,7 +30,7 @@ int main()
 
         if(val)
         {
-            printf("State_len: %d, Table_len: %d, App_len: %d\n", incoming_data.state.len, incoming_data.table.len, incoming_data.app.len);
+            printf("State_len: %d, Table_len: %d, App_len: %d, Msg_len: %d\n", incoming_data.state.len, incoming_data.sch.len, incoming_data.app.len, incoming_data.msg.len);
             printf("Test State: %x, %x, %x, %x\n", incoming_data.state.timestamp, incoming_data.state.app_id, incoming_data.state.pointer_offset, incoming_data.state.len);
             destroy(&incoming_data);
         }

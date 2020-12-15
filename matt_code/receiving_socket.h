@@ -17,8 +17,9 @@
 
 // Need to increase these all by one to prevent cycling on 0
 #define ID_STATE 1
-#define ID_TBL 2
+#define ID_SCH 2
 #define ID_APP 3
+#define ID_MSG 4
 
 const int OFFSET_PT = 0;
 const int OFFSET_TIME = OFFSET_PT + sizeof(unsigned char);
@@ -26,6 +27,9 @@ const int OFFSET_ID = OFFSET_TIME + sizeof(int32_t);
 const int OFFSET_PNTR = OFFSET_ID + sizeof(int16_t);
 const int OFFSET_LEN = OFFSET_PNTR + sizeof(int16_t);
 const int OFFSET_MESSAGE = OFFSET_LEN + sizeof(int32_t);
+
+// Fix to return 0 for successful
+// add another table option (message table, schedule table)
 
 typedef struct Data_Len_Pair
 {
@@ -46,8 +50,9 @@ typedef struct State_Info
 typedef struct Incoming_Data
 {
     State_Info state;
-    Data_Len_Pair table;
+    Data_Len_Pair sch;
     Data_Len_Pair app;
+    Data_Len_Pair msg;
 } Incoming_Data;
 
 typedef struct Sockets
@@ -64,7 +69,7 @@ int is_full(Incoming_Data *incoming_data);
 void destroy(Incoming_Data *incoming_data);
 int process_incoming(char *buffer, int buffer_size, Incoming_Data *incoming_data);
 void uninitialize_socket(Sockets *socket_data);
-int initialize_socket(Sockets *socket_data);
+int initialize_socket(Sockets *socket_data, Incoming_Data *incoming_data);
 int check_buffer(int *socket_fd, char *buffer, struct sockaddr_in *clnt_addr);
 
 int socket_run(Sockets *socket_data, char *buffer, Incoming_Data *incoming_data)
@@ -83,7 +88,7 @@ int socket_run(Sockets *socket_data, char *buffer, Incoming_Data *incoming_data)
         {
             ret_val = process_incoming(buffer, buffer_size, incoming_data);
         }
-    } while (buffer_size > 0 && !ret_val);
+    } while (buffer_size > 0 && ret_val);
 
     return ret_val;
 }
@@ -116,15 +121,16 @@ void process_state(char *datagram, int data_len, State_Info *info)
 
 int is_full(Incoming_Data *incoming_data)
 {
-    return incoming_data->state.len && incoming_data->table.len && incoming_data->app.len;
+    return incoming_data->state.len && incoming_data->sch.len && incoming_data->app.len && incoming_data->msg.len;
 }
 
 void destroy(Incoming_Data *incoming_data)
 {
     free(incoming_data->state.data);
-    free(incoming_data->table.data);
+    free(incoming_data->sch.data);
     free(incoming_data->app.data);
-    incoming_data->state.len = incoming_data->table.len = incoming_data->app.len = 0;
+    free(incoming_data->msg.data);
+    incoming_data->state.len = incoming_data->sch.len = incoming_data->msg.len = incoming_data->app.len = 0;
 }
 
 int process_incoming(char *buffer, int buffer_size, Incoming_Data *incoming_data)
@@ -134,18 +140,26 @@ int process_incoming(char *buffer, int buffer_size, Incoming_Data *incoming_data
 
     if (buffer[OFFSET_PT] == ID_STATE)
     {
+        printf("state\n");
         process_state(buffer, buffer_size, &incoming_data->state);
     }
     else if (buffer[OFFSET_PT] == ID_APP)
     {
+        printf("app\n");
         process_tbl_app(buffer, &incoming_data->app, buffer_size, buffer[OFFSET_PT]);
     }
-    else if (buffer[OFFSET_PT] == ID_TBL)
+    else if (buffer[OFFSET_PT] == ID_SCH)
     {
-        process_tbl_app(buffer, &incoming_data->table, buffer_size, buffer[OFFSET_PT]);
+        printf("schedule\n");
+        process_tbl_app(buffer, &incoming_data->sch, buffer_size, buffer[OFFSET_PT]);
+    }
+    else if (buffer[OFFSET_PT] == ID_MSG)
+    {
+        printf("message\n");
+        process_tbl_app(buffer, &incoming_data->msg, buffer_size, buffer[OFFSET_PT]);
     }
 
-    return is_full(incoming_data);
+    return !is_full(incoming_data);
 }
 
 void uninitialize_socket(Sockets *socket_data)
@@ -153,8 +167,10 @@ void uninitialize_socket(Sockets *socket_data)
     close(socket_data->socket_fd);
 }
 
-int initialize_socket(Sockets *socket_data)
+int initialize_socket(Sockets *socket_data, Incoming_Data *incoming_data)
 {
+    incoming_data->state.len = incoming_data->sch.len = incoming_data->msg.len = incoming_data->app.len = 0;
+
     memset(&socket_data->srv_addr, 0, sizeof(socket_data->srv_addr));
     memset(&socket_data->clnt_addr, 0, sizeof(socket_data->clnt_addr));
 
