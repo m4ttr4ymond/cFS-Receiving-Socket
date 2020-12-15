@@ -57,8 +57,6 @@ typedef struct Sockets
     struct sockaddr_in clnt_addr;
 } Sockets;
 
-int buffer_size;
-
 int socket_run(Sockets *socket_data, char *buffer, Incoming_Data *incoming_data);
 void process_tbl_app(char *datagram, Data_Len_Pair *incoming_data, int32_t data_len, int type);
 void process_state(char *datagram, int data_len, State_Info *info);
@@ -72,6 +70,7 @@ int check_buffer(int *socket_fd, char *buffer, struct sockaddr_in *clnt_addr);
 int socket_run(Sockets *socket_data, char *buffer, Incoming_Data *incoming_data)
 {
     int ret_val = 0;
+    int buffer_size;
     do
     {
         if (buffer_size > 0)
