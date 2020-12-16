@@ -33,15 +33,6 @@
 // ID for the message packet (message table)
 #define ID_MSG 4
 
-// The initial offset for the packet type id
-#define OFFSET_PT 0
-// The offset for the timestamp
-#define OFFSET_TIME OFFSET_PT + sizeof(unsigned char)
-// The offset for the ID
-#define OFFSET_ID OFFSET_TIME + sizeof(int32_t)
-// The offset for the begining of the message
-#define OFFSET_MESSAGE OFFSET_ID + sizeof(int32_t)
-
 // A struct to act as a pseudo struct
 typedef struct Data_Len_Pair
 {
@@ -60,6 +51,11 @@ typedef struct State_Info
     char *data;
     // the length of the data being held
     int32_t len;
+    // Name of the application
+    Data_Len_Pair app_name;
+    Data_Len_Pair entrypoint;
+    uint32_t stack_size;
+    uint16_t priority;
 } State_Info;
 
 // All od the data that's being sent. There is one variable per field
@@ -168,15 +164,56 @@ void process_state(char *datagram, int data_len, State_Info *info)
     // If there is any data, free it
     if (info->len > 0)
         free(info->data);
+
+    if (info->app_name.len > 0)
+        free(info->app_name.data);
+
+    if (info->entrypoint.len > 0)
+        free(info->entrypoint.data);
+
+    // Start a temp offset to be used to offset everything
+    int temp_offset = 1;
+
+    // Get the length of the app name variable
+    info->app_name.len = datagram[temp_offset++];
+
+    // malloc space for the app name variable
+    info->app_name.data = (char *)malloc(info->app_name.len);
+    // Copy thr string to the char array
+    // TODO: need to add null character at the end
+    memcpy(info->app_name.data, datagram + temp_offset, info->app_name.len);
+    // Update the offset for the amount of data taken
+    temp_offset += info->app_name.len;
     
+    // get the length of the entrypoint name
+    info->entrypoint.len = datagram[temp_offset++];
+    // malloc the space for the entrypoint data
+    info->entrypoint.data = (char *)malloc(info->entrypoint.len);
+    // copy data to the correct location
+    memcpy(info->entrypoint.data, datagram + temp_offset, info->entrypoint.len);
+    temp_offset += info->entrypoint.len;
+    
+    // get the stack size
+    info->stack_size = ntohl(*((uint32_t *)(datagram + temp_offset)));
+    temp_offset += 4;
+    
+    // get the priority number
+    info->priority = ntohs(*((uint16_t *)(datagram + temp_offset)));
+    temp_offset += 2;
+    
+
     // Gets the timestamp from the data
-    info->timestamp = ntohl(*((uint32_t *)(datagram + OFFSET_TIME )));
+    info->timestamp = ntohl(*((uint32_t *)(datagram + temp_offset)));
+    // 4 bytes plus skipping the app id
+    temp_offset += 6;
+
     // Calculates the length of the data
-    info->len = data_len - OFFSET_MESSAGE;
-    // mallocs soace for the data
+    info->len = data_len - temp_offset;
+    
+    // mallocs space for the data
     info->data = (char *)malloc(info->len);
     // copy's data from the buffer to the malloced array
-    memcpy(info->data, datagram + OFFSET_MESSAGE, info->len);
+    memcpy(info->data, datagram + temp_offset, info->len);
 }
 
 
@@ -196,12 +233,24 @@ void destroy(Incoming_Data *incoming_data)
     free(incoming_data->sch.data);
     free(incoming_data->app.data);
     free(incoming_data->msg.data);
+    free(incoming_data->state.app_name.data);
+    free(incoming_data->state.entrypoint.data);
 
     // Reset lengths to 0 to show that there's nothing in there
-    incoming_data->state.len = incoming_data->sch.len = incoming_data->msg.len = incoming_data->app.len = 0;
+    incoming_data->state.len = 0;
+    incoming_data->sch.len = 0;
+    incoming_data->msg.len = 0;
+    incoming_data->app.len = 0;
+    incoming_data->state.app_name.len = 0;
+    incoming_data->state.entrypoint.len = 0;
 
     // Setting pointers to NULL so that free does't throw an error if accidentaly called again
-    incoming_data->state.data = incoming_data->sch.data = incoming_data->msg.data = incoming_data->app.data = NULL;
+    incoming_data->state.data = NULL;
+    incoming_data->sch.data = NULL;
+    incoming_data->msg.data = NULL;
+    incoming_data->app.data = NULL;
+    incoming_data->state.app_name.data = NULL;
+    incoming_data->state.entrypoint.data = NULL;
 }
 
 
@@ -209,22 +258,22 @@ void destroy(Incoming_Data *incoming_data)
 int process_incoming(char *buffer, int buffer_size, Incoming_Data *incoming_data)
 {
     // Packet is for the state
-    if (buffer[OFFSET_PT] == ID_STATE)
+    if (buffer[0] == ID_STATE)
     {
         process_state(buffer, buffer_size, &incoming_data->state);
     }
     // Packet is for the app .so
-    else if (buffer[OFFSET_PT] == ID_APP)
+    else if (buffer[0] == ID_APP)
     {
         process_tbl_app(buffer, &incoming_data->app, buffer_size);
     }
     // Packet is for the schedule table
-    else if (buffer[OFFSET_PT] == ID_SCH)
+    else if (buffer[0] == ID_SCH)
     {
         process_tbl_app(buffer, &incoming_data->sch, buffer_size);
     }
     // Packet is for the message table
-    else if (buffer[OFFSET_PT] == ID_MSG)
+    else if (buffer[0] == ID_MSG)
     {
         process_tbl_app(buffer, &incoming_data->msg, buffer_size);
     }
@@ -245,7 +294,12 @@ void uninitialize_socket(Sockets *socket_data)
 int initialize_socket(Sockets *socket_data, Incoming_Data *incoming_data)
 {
     // Set to 0 to initialize
-    incoming_data->state.len = incoming_data->sch.len = incoming_data->msg.len = incoming_data->app.len = 0;
+    incoming_data->state.len = 0;
+    incoming_data->sch.len = 0;
+    incoming_data->msg.len = 0;
+    incoming_data->app.len = 0;
+    incoming_data->state.app_name.len = 0;
+    incoming_data->state.entrypoint.len = 0;
     memset(&socket_data->srv_addr, 0, sizeof(socket_data->srv_addr));
     memset(&socket_data->clnt_addr, 0, sizeof(socket_data->clnt_addr));
 
