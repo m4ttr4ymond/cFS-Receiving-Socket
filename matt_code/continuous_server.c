@@ -43,6 +43,10 @@ int main()
         {
             // Print out the data just becase
             printf("State_len: %d, Table_len: %d, App_len: %d, Msg_len: %d\n", incoming_data.state.len, incoming_data.sch.len, incoming_data.app.len, incoming_data.msg.len);
+
+            printf("%s\n", incoming_data.state.app_name.data);
+            printf("%s\n", incoming_data.state.entrypoint.data);
+
             // Free all of the mallocs and reset all of the variables so we don't end up with memory leaks
             destroy(&incoming_data);
         }

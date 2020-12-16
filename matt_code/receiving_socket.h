@@ -178,19 +178,21 @@ void process_state(char *datagram, int data_len, State_Info *info)
     info->app_name.len = datagram[temp_offset++];
 
     // malloc space for the app name variable
-    info->app_name.data = (char *)malloc(info->app_name.len);
+    info->app_name.data = (char *)malloc(info->app_name.len + 1);
     // Copy thr string to the char array
     // TODO: need to add null character at the end
     memcpy(info->app_name.data, datagram + temp_offset, info->app_name.len);
+    info->app_name.data[info->app_name.len+1] = '\0';
     // Update the offset for the amount of data taken
     temp_offset += info->app_name.len;
-    
+
     // get the length of the entrypoint name
     info->entrypoint.len = datagram[temp_offset++];
     // malloc the space for the entrypoint data
-    info->entrypoint.data = (char *)malloc(info->entrypoint.len);
+    info->entrypoint.data = (char *)malloc(info->entrypoint.len + 1);
     // copy data to the correct location
     memcpy(info->entrypoint.data, datagram + temp_offset, info->entrypoint.len);
+    info->entrypoint.data[info->entrypoint.len + 1] = '\0';
     temp_offset += info->entrypoint.len;
     
     // get the stack size
