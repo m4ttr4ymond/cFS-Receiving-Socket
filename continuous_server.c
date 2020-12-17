@@ -7,16 +7,6 @@
  */
 
 #include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <unistd.h>
-#include <string.h>
-
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-
 #include "receiving_socket.h"
 
 // This is an example application of how to use the cFS receiving socket library
