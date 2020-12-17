@@ -33,7 +33,7 @@
 // ID for the message packet (message table)
 #define ID_MSG 4
 
-// A struct to act as a pseudo struct
+// A struct to act as a pseudo vector
 typedef struct Data_Len_Pair
 {
     // The data to be held, in bytes
@@ -58,7 +58,7 @@ typedef struct State_Info
     uint16_t priority;
 } State_Info;
 
-// All od the data that's being sent. There is one variable per field
+// All of the data that's being sent. There is one variable per field
 typedef struct Incoming_Data
 {
     // The application state that has been sent

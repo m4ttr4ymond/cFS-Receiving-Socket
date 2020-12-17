@@ -9,7 +9,7 @@ The cFS receiving socket is an importable header file that provides a simple int
    2. The entrypoint for the app as a character array
    3. The stack size
    4. The priority of the application
-   5. The state of the app that will be started on the given instance of cFS. The exact format is not important, as it is not handled by this section
+   5. The state of the app that will be started on the given instance of cFS. The exact format is not important, as it is not handled by this library
 2. The new schedule table
 3. The new `.so` file for the given app
 4. The new message table
@@ -18,7 +18,7 @@ As datagrams are received, they are assigned to a struct that holds all of the d
 
 ### Format
 
-The state has a special format (more than just a single file/datas structure), which is as follows:
+All datagrams contain an ID that distinguishes the type of data they contain (state = 1, schedule table = 2, app `.so` = 3, message table = 4), which occupies the first byte of the datagram. All other data follows this initial byte. The schedule table, app `.so`, and message table only contain their associated files. The data in the state datagram has a special format, which is as follows:
 
 | Data                                         | Size                         |
 | -------------------------------------------- | ---------------------------- |
@@ -37,8 +37,8 @@ During development, we make several assumptions about how the UDP datagrams will
 1. They may arrive in any order
 2. There will be no dropped datagrams
 3. There will be no duplicated datagrams
-4. Datagrams for one state update will not be interleaved with datagrams for another state update. This 
-6. States, tables, and the `.so` file each fit into one datagram.
+4. Datagrams for one state update will not be interleaved with datagrams for another state update. 
+6. States, tables, and the `.so` file fit into one datagram each.
 7. No more than one set of datagrams will be in the buffer at once.
 7. Some datagrams may arrive much later than others
 
@@ -201,4 +201,4 @@ In order to make sure that data consistency is maintained, as well as to avoid m
 uninitialize_socket(&socket_data);
 ```
 
-The `uninitialize_socket` function will release the sockets. This should be performed when we no longer want to use the sockets.
+The `uninitialize_socket` function will release the sockets. This should be performed when we no longer want to use the sockets. After doing this, the socket will need to be reinitialized before being used again.
